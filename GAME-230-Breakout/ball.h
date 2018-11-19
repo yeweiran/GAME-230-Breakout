@@ -20,9 +20,13 @@ public:
 	int UpdatePosition(float dt);
 	CircleShape getBall();
 	Vector2f getVel();
-	int reset(int turn);
+	int reset();
 	int getType();
-
+	int collidBrickDetect(RectangleShape rect);
+	int startMove(Vector2f cpp, Vector2f ppp, float dt);
+	int collidPaddleDetect(RectangleShape rect);
+	int levelUp();
+	int setBasicVel(int vel);
 private:
 	CircleShape ballShape;
 	Vector2f vel;
@@ -30,5 +34,7 @@ private:
 	int WIDTH;
 	int HEIGHT;
 	int type;
+	int radius;
+	int basicVel;
+	Vector2f sVel;
 };
-#pragma once

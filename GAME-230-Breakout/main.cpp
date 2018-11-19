@@ -1,5 +1,8 @@
 #include "ball.h"
 #include "paddle.h"
+#include "brick.h"
+#include <vector>
+#include <string>
 
 using namespace sf;
 #define _CRTDBG_MAP_ALLOC
@@ -14,25 +17,40 @@ using namespace sf;
 #endif
 
 int WIDTH = 1200;
-int HEIGHT = 800;
+int HEIGHT = 1000;
 int initVel = 500;
 int tempVel;
 int augPerHit = 25;
 float radius = 20;
-Vector2f paddleSize = Vector2f(30, 120);
-Vector2f paddleVel = Vector2f(0, -250);
+Vector2f paddleSize = Vector2f(200, 50);
+Vector2f paddleVel = Vector2f(-300, 0);
+Vector2f brickSize = Vector2f(198, 48);
 Font font;
 Texture ballTex;
 Texture paddleTex;
-Texture obstacleTex;
+Texture brickTex;
+Texture toughBrickTex;
+Texture ironBrickTex;
 Texture backTex;
 Sprite background;
+//board
 SoundBuffer buf;
 Sound sound;
+//break
+SoundBuffer bBuf;
+Sound bSound;
+//damage
+SoundBuffer dBuf;
+Sound dSound;
+//lose life
 SoundBuffer sBuf;
 Sound sSound;
+//hitPaddle
 SoundBuffer pBuf;
 Sound pSound;
+//win
+SoundBuffer wBuf;
+Sound wSound;
 int lScore;
 int rScore;
 Text lScoreText;
@@ -40,32 +58,30 @@ Text rScoreText;
 Text MainText;
 int currentIndex;
 int kicker;
-
-enum mode {
-	AI,
-	PvP,
-	OBSTACLE,
-	POWERUPS,
-	EXIT
-};
-mode gameMode;
+int level;
+int lives;
 
 int updateMainMenu(Text mainMenuChioce[], RectangleShape &currentChoiceRect);
 int renderMainMenuFrame(Text mainMenuChioce[], RectangleShape currentChoiceRect);
-int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall);
-void render_frame(ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall);
+int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall);
+void render_frame(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall);
 int updateEndInterface(Text endChioce[], RectangleShape &currentChoiceRect);
 int renderEndInterfaceFrame(Text endChioce[], RectangleShape &currentChoiceRect);
 
-int reset(ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall);
-int resetGame(paddle &lPaddle, paddle &rPaddle);
+int reset(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall);
+int resetGame(ball &newBall);
 int resetPaddle(paddle &lPaddle, paddle &rPaddle);
+
+int checkWin();
 float length(Vector2f v)
 {
 	return sqrtf(v.x*v.x + v.y*v.y);
 }
 
 RenderWindow window;
+std::vector<std::unique_ptr<brick>> bricks;
+
+int initBricks(int level);
 
 int main()
 {
@@ -79,6 +95,8 @@ int main()
 	int gameInterfaceFlag = 0;
 	int endInterfaceFlag = 0;
 	int temp = 0;
+	level = 2;
+	lives = 3;
 	RectangleShape currentChoiceRect;
 	currentIndex = 0;
 	Vector2u TextureSize;
@@ -88,15 +106,23 @@ int main()
 
 	font.loadFromFile("font.ttf");
 	ballTex.loadFromFile("ball.png");
-	paddleTex.loadFromFile("woodpaddle.png");
-	obstacleTex.loadFromFile("ironplate.png");
+	paddleTex.loadFromFile("paddle.png");
+	brickTex.loadFromFile("brick.png");
+	toughBrickTex.loadFromFile("toughbrick.png");
+	ironBrickTex.loadFromFile("ironbrick.png");
 	backTex.loadFromFile("back.png");
 	buf.loadFromFile("knock.wav");
 	sound.setBuffer(buf);
+	bBuf.loadFromFile("break.wav");
+	bSound.setBuffer(bBuf);
+	dBuf.loadFromFile("damage.wav");
+	dSound.setBuffer(dBuf);
 	sBuf.loadFromFile("score.wav");
 	sSound.setBuffer(sBuf);
-	pBuf.loadFromFile("powerup.wav");
+	pBuf.loadFromFile("paddle.wav");
 	pSound.setBuffer(pBuf);
+	wBuf.loadFromFile("win.wav");
+	wSound.setBuffer(wBuf);
 
 	if (!backTex.loadFromFile("background.jpg"))
 	{
@@ -117,39 +143,21 @@ int main()
 	ball powerBall = ball(radius + 15, WIDTH, HEIGHT, 0, type, ballTex);
 	paddle lPaddle = paddle(paddleSize, WIDTH, HEIGHT, -1, paddleVel, paddleTex);
 	paddle rPaddle = paddle(paddleSize, WIDTH, HEIGHT, 1, paddleVel, paddleTex);
-	paddle obstacle = paddle(paddleSize, WIDTH, HEIGHT, 0, Vector2f(0, 200), obstacleTex);
+	//paddle obstacle = paddle(paddleSize, WIDTH, HEIGHT, 0, Vector2f(0, 200), obstacleTex);
 	tempVel = initVel;
 
-	Text mainMenuChoice[5];
+	Text mainMenuChoice[2];
 	mainMenuChoice[0].setFont(font);
 	mainMenuChoice[0].setCharacterSize(50);
-	mainMenuChoice[0].setString("vs AI");
+	mainMenuChoice[0].setString("Start");
 	mainMenuChoice[0].setFillColor(Color::White);
 	mainMenuChoice[0].setPosition(WIDTH / 2 - 100, HEIGHT / 2);
 
 	mainMenuChoice[1].setFont(font);
 	mainMenuChoice[1].setCharacterSize(50);
-	mainMenuChoice[1].setString("vs Human");
+	mainMenuChoice[1].setString("Exit");
 	mainMenuChoice[1].setFillColor(Color::White);
 	mainMenuChoice[1].setPosition(WIDTH / 2 - 100, HEIGHT / 2 + 60);
-
-	mainMenuChoice[2].setFont(font);
-	mainMenuChoice[2].setCharacterSize(50);
-	mainMenuChoice[2].setString("Obstacle Mode");
-	mainMenuChoice[2].setFillColor(Color::White);
-	mainMenuChoice[2].setPosition(WIDTH / 2 - 100, HEIGHT / 2 + 120);
-
-	mainMenuChoice[3].setFont(font);
-	mainMenuChoice[3].setCharacterSize(50);
-	mainMenuChoice[3].setString("PowerUps Mode");
-	mainMenuChoice[3].setFillColor(Color::White);
-	mainMenuChoice[3].setPosition(WIDTH / 2 - 100, HEIGHT / 2 + 180);
-
-	mainMenuChoice[4].setFont(font);
-	mainMenuChoice[4].setCharacterSize(50);
-	mainMenuChoice[4].setString("Exit");
-	mainMenuChoice[4].setFillColor(Color::White);
-	mainMenuChoice[4].setPosition(WIDTH / 2 - 100, HEIGHT / 2 + 240);
 
 	Text endChoice[3];
 	endChoice[0].setFont(font);
@@ -173,15 +181,15 @@ int main()
 	lScore = 0;
 	rScore = 0;
 	lScoreText.setFont(font);
-	lScoreText.setCharacterSize(100);
-	lScoreText.setString(std::to_string(lScore));
+	lScoreText.setCharacterSize(50);
+	lScoreText.setString("Left Lives: III");
 	lScoreText.setFillColor(Color::White);
-	lScoreText.setPosition(50, 50);
+	lScoreText.setPosition(20, 0);
 	rScoreText.setFont(font);
-	rScoreText.setCharacterSize(100);
-	rScoreText.setString(std::to_string(rScore));
+	rScoreText.setCharacterSize(50);
+	rScoreText.setString("Scores: 0");
 	rScoreText.setFillColor(Color::White);
-	rScoreText.setPosition(WIDTH - 100, 50);
+	rScoreText.setPosition(WIDTH - 400, 0);
 
 	MainText.setFont(font);
 	MainText.setCharacterSize(100);
@@ -206,14 +214,15 @@ int main()
 				mainMenuFlag = 0;
 				gameInterfaceFlag = 1;
 				currentIndex = 0;
+				initBricks(level);
 			}
 			else if (temp == -1) {
 				break;
 			}
 		}
 		if (gameInterfaceFlag) {
-			temp = update_state(dt, newBall, lPaddle, rPaddle, obstacle, powerBall);
-			render_frame(newBall, lPaddle, rPaddle, obstacle, powerBall);
+			temp = update_state(dt, newBall, lPaddle, rPaddle, powerBall);
+			render_frame(newBall, lPaddle, rPaddle, powerBall);
 			if (temp == 1) {
 				gameInterfaceFlag = 0;
 				endInterfaceFlag = 1;
@@ -228,15 +237,15 @@ int main()
 				currentIndex = 0;
 				endInterfaceFlag = 0;
 				gameInterfaceFlag = 1;
-				resetGame(lPaddle, rPaddle);
+				resetGame(newBall);
 			}
 			if (temp == 1) {
 				currentIndex = 0;
 				endInterfaceFlag = 0;
 				mainMenuFlag = 1;
-				MainText.setString("Just Another Pong Game");
+				MainText.setString("Just Another Breakout");
 				MainText.setPosition(150, 150);
-				resetGame(lPaddle, rPaddle);
+				resetGame(newBall);
 			}
 			if (temp == 2) {
 				break;
@@ -249,204 +258,156 @@ int main()
 	return 0;
 }
 
-int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall)
+int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall)
 {
 	Vector2f bp = newBall.getBall().getPosition();
 	Vector2f lpp = lPaddle.getPaddle().getPosition();
 	Vector2f rpp = rPaddle.getPaddle().getPosition();
-	Vector2f op = obstacle.getPaddle().getPosition();
+	//Vector2f op = obstacle.getPaddle().getPosition();
 	Vector2f pp = powerBall.getBall().getPosition();
 	Vector2f temp;
 	float len;
 	int kick = 0;
+	static Vector2f ppp = rpp;
+	static int startFlag = 1;
 	static int flag = 0;
-	//score
-	if (bp.x <= 0) {
+	std::string text;
+	//win
+	if (checkWin()) {
 		if (flag == 0) {
-			rScore++;
-			rScoreText.setString(std::to_string(rScore));
+			wSound.play();
+			flag = 1;
+		}
+		if (wSound.getStatus() != SoundSource::Playing && flag == 1) {
+			flag = 0;
+			startFlag = 1;
+			reset(newBall, lPaddle, rPaddle, powerBall);
+			ppp = rPaddle.getPaddle().getPosition();
+			level = (level + 1) % 3;
+			newBall.levelUp();
+			initBricks(level);
+		}
+		return 0;
+	}
+	//lose
+	if (bp.y >= HEIGHT - 10) {
+		if (flag == 0) {
+			lives--;
+			text = "Left lives: ";
+			for (int i = 0; i < lives; i++) {
+				text = text + "I";
+			}
+			lScoreText.setString(text);
 			sSound.play();
 			flag = 1;
 		}
 		if (sSound.getStatus() != SoundSource::Playing && flag == 1) {
 			flag = 0;
-			reset(newBall, lPaddle, rPaddle, obstacle, powerBall);
-			if (lScore == 5 || rScore == 5) {
+			startFlag = 1;
+			reset(newBall, lPaddle, rPaddle, powerBall);
+			ppp = rPaddle.getPaddle().getPosition();
+			if (lives == 0) {
 				return 1;
 			}
 		}
 		return 0;
 	}
-	if (bp.x >= WIDTH) {
-		if (flag == 0) {
-			lScore++;
-			lScoreText.setString(std::to_string(lScore));
-			sSound.play();
-			flag = 1;
+	if (startFlag) {
+		newBall.startMove(rpp, ppp, dt);
+		ppp = rpp;
+		if (Keyboard::isKeyPressed(Keyboard::Space)) {
+			startFlag = 0;
+
 		}
-		if (sSound.getStatus() != SoundSource::Playing && flag == 1) {
-			flag = 0;
-			reset(newBall, lPaddle, rPaddle, obstacle, powerBall);
-			if (lScore == 5 || rScore == 5) {
-				return 1;
-			}
-		}
-		return 0;
 	}
 	//collision
-	//lp
-	if ((bp.x >= lpp.x && bp.x < lpp.x + lPaddle.getSize().x && (abs(lpp.y - bp.y) < radius || abs(bp.y - lpp.y - lPaddle.getSize().y) < radius))
-		|| (bp.y > lpp.y && bp.y < lpp.y + lPaddle.getSize().y && bp.x - lpp.x - lPaddle.getSize().x < radius)
-		|| length(Vector2f(bp.x - lpp.x - lPaddle.getSize().x, bp.y - lpp.y)) < radius
-		|| length(Vector2f(bp.x - lpp.x - lPaddle.getSize().x, bp.y - lpp.y - lPaddle.getSize().y)) < radius) {
-		temp = bp - Vector2f(lpp.x - lPaddle.getSize().y / 2, lpp.y + lPaddle.getSize().y / 2);
-		len = length(temp);
-		newBall.SetVel(Vector2f(temp.x*tempVel / len, temp.y*tempVel / len));
-		tempVel += augPerHit;
-		kicker = -1;
-		kick = 1;
-	}
-	//rp
-	if ((bp.x > rpp.x && bp.x <= rpp.x + rPaddle.getSize().x && (abs(rpp.y - bp.y) < radius || abs(bp.y - rpp.y - rPaddle.getSize().y) < radius))
-		|| (bp.y > rpp.y && bp.y < rpp.y + rPaddle.getSize().y && rpp.x - bp.x < radius)
-		|| length(Vector2f(bp.x - rpp.x, bp.y - rpp.y)) < radius
-		|| length(Vector2f(bp.x - rpp.x, bp.y - rpp.y - rPaddle.getSize().y)) < radius) {
-		temp = bp - Vector2f(rpp.x + rPaddle.getSize().x + rPaddle.getSize().y / 2, rpp.y + rPaddle.getSize().y / 2);
-		len = length(temp);
-		newBall.SetVel(Vector2f(temp.x*tempVel / len, temp.y*tempVel / len));
-		tempVel += augPerHit;
-		kicker = 1;
-		kick = 1;
+	if (!startFlag) {
+		for (int i = 0; i < bricks.size();)
+		{
+			if (newBall.collidBrickDetect(bricks[i]->getRect())) {
+				int type = bricks[i]->hit();
+				kick = 3;
+				if (type) {
+					rScore += (type * 10);
+					rScoreText.setString("Scores: " + std::to_string(rScore));
+					bricks.erase(bricks.begin() + i);
+					kick = 4;
+					continue;
+				}
+			}
+			i++;
+		}
+		if (newBall.collidPaddleDetect(rPaddle.getPaddle())) {
+			kick = 2;
+		}
+		newBall.UpdatePosition(dt);
 	}
 	//board
 	if (bp.y <= radius) {
 		newBall.SetVel(Vector2f(newBall.getVel().x, abs(newBall.getVel().y)));
 		kick = 1;
 	}
-	if (bp.y >= HEIGHT - radius) {
-		newBall.SetVel(Vector2f(newBall.getVel().x, -abs(newBall.getVel().y)));
+	if (bp.x <= radius) {
+		newBall.SetVel(Vector2f(abs(newBall.getVel().x), newBall.getVel().y));
+		kick = 1;
+	}
+	if (bp.x >= WIDTH - radius) {
+		newBall.SetVel(Vector2f(-abs(newBall.getVel().x), newBall.getVel().y));
 		kick = 1;
 	}
 
-	//press Up
-	if (Keyboard::isKeyPressed(Keyboard::Up)) {
+	////press Left
+	if (Keyboard::isKeyPressed(Keyboard::Left)) {
 		rPaddle.UpdatePosition(dt, 0);
 	}
-	//press Down
-	if (Keyboard::isKeyPressed(Keyboard::Down)) {
+	////press Right
+	if (Keyboard::isKeyPressed(Keyboard::Right)) {
 		rPaddle.UpdatePosition(dt, 1);
 	}
-	//AI
-	if (gameMode == AI || gameMode == OBSTACLE || gameMode == POWERUPS) {
-		if (bp.y < lpp.y + lPaddle.getSize().y / 2) {
-			lPaddle.UpdatePosition(dt, 0);
-		}
-		if (bp.y > lpp.y + lPaddle.getSize().y / 2) {
-			lPaddle.UpdatePosition(dt, 1);
-		}
-	}
-	//PvP
-	if (gameMode == PvP) {
-		if (Keyboard::isKeyPressed(Keyboard::W)) {
-			lPaddle.UpdatePosition(dt, 0);
-		}
-		if (Keyboard::isKeyPressed(Keyboard::S)) {
-			lPaddle.UpdatePosition(dt, 1);
-		}
-	}
-	//Obstacle Mode
-	if (gameMode == OBSTACLE) {
-		obstacle.UpdatePosition(dt, 0);
-		if (bp.x >= op.x && bp.x <= op.x + paddleSize.x) {
-			if (op.y - bp.y < radius && op.y >= bp.y) {
-				newBall.SetVel(Vector2f(newBall.getVel().x, -abs(newBall.getVel().y)));
-				kick = 1;
-			}
-			if (bp.y - op.y - paddleSize.y < radius && bp.y > op.y + paddleSize.y) {
-				newBall.SetVel(Vector2f(newBall.getVel().x, abs(newBall.getVel().y)));
-				kick = 1;
-			}
-			//tempVel += augPerHit;
-		}
-		else if (bp.y >= op.y && bp.y <= op.y + paddleSize.y) {
-			if (bp.x - op.x - paddleSize.x <= radius && bp.x >= op.x + paddleSize.x) {
-				newBall.SetVel(Vector2f(abs(newBall.getVel().x), newBall.getVel().y));
-				kick = 1;
-			}
-			if (op.x - bp.x <= radius && op.x >= bp.x) {
-				newBall.SetVel(Vector2f(-abs(newBall.getVel().x), newBall.getVel().y));
-				kick = 1;
-			}
-			//tempVel += augPerHit;
-		}
-		else if (length(Vector2f(bp.x - op.x, bp.y - op.y)) < radius && op.x > bp.x && op.y > bp.y) {
-			newBall.SetVel(Vector2f(-abs(newBall.getVel().x), -abs(newBall.getVel().y)));
-			kick = 1;
-		}
-		else if (length(Vector2f(bp.x - op.x - paddleSize.x, bp.y - op.y)) < radius && bp.x > op.x + paddleSize.x && op.y > bp.y) {
-			newBall.SetVel(Vector2f(abs(newBall.getVel().x), -abs(newBall.getVel().y)));
-			kick = 1;
-		}
-		else if (length(Vector2f(bp.x - op.x, bp.y - op.y - paddleSize.y)) < radius && op.x > bp.x && bp.y > op.y + paddleSize.y) {
-			newBall.SetVel(Vector2f(-abs(newBall.getVel().x), abs(newBall.getVel().y)));
-			kick = 1;
-		}
-		else if (length(Vector2f(bp.x - op.x - paddleSize.x, bp.y - op.y - paddleSize.y)) < radius
-			&& bp.x > op.x + paddleSize.x && bp.y > op.y + paddleSize.y) {
-			newBall.SetVel(Vector2f(abs(newBall.getVel().x), abs(newBall.getVel().y)));
-			kick = 1;
-		}
-	}
-	//PowerUps Mode
-	if (gameMode == POWERUPS) {
-		if (length(bp - pp) <= radius + 15) {
-			pSound.play();
-			if (kicker == -1) {
-				lPaddle.powerUp(powerBall.getType());
-			}
-			else if (kicker == 1) {
-				rPaddle.powerUp(powerBall.getType());
-			}
-			powerBall.reset(0);
-		}
-	}
-	if (kick == 1) {
+	
+	switch (kick)
+	{
+	case 1:
 		sound.play();
 		kick = 0;
+		break;
+	case 2:
+		pSound.play();
+		kick = 0;
+		break;
+	case 3:
+		dSound.play();
+		kick = 0;
+		break;
+	case 4:
+		bSound.play();
+		kick = 0;
+		break;
 	}
-	newBall.UpdatePosition(dt);
 
 	return 0;
 }
 
-void render_frame(ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall)
+void render_frame(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall)
 {
 	window.clear();
 	window.draw(background);
 	window.draw(lScoreText);
 	window.draw(rScoreText);
 	window.draw(newBall.getBall());
-	window.draw(lPaddle.getPaddle());
+	//window.draw(lPaddle.getPaddle());
 	window.draw(rPaddle.getPaddle());
-	if (gameMode == OBSTACLE) {
-		window.draw(obstacle.getPaddle());
-	}
-	if (gameMode == POWERUPS) {
-		window.draw(powerBall.getBall());
+	for (int i = 0; i < bricks.size(); ++i)
+	{
+		bricks[i]->draw(window);
 	}
 }
 
-int reset(ball &newBall, paddle &lPaddle, paddle &rPaddle, paddle &obstacle, ball &powerBall) {
-	tempVel = initVel;
-	newBall.reset(lScore + rScore);
-	lPaddle.reset();
+int reset(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall) {
+	//tempVel = initVel;
+	newBall.reset();
+	//lPaddle.reset();
 	rPaddle.reset();
-	if (gameMode == OBSTACLE) {
-		obstacle.reset();
-	}
-	if (gameMode == POWERUPS) {
-		powerBall.reset(0);
-	}
 	return 0;
 }
 
@@ -462,12 +423,12 @@ int updateMainMenu(Text mainMenuChioce[], RectangleShape &currentChoiceRect) {
 	}
 	if (!Keyboard::isKeyPressed(Keyboard::Up) && upFlag == 1) {
 		mainMenuChioce[currentIndex].setColor(Color::White);
-		currentIndex = (currentIndex - 1 + EXIT + 1) % (EXIT + 1);
+		currentIndex = (currentIndex -1 + 2) % (2);
 		upFlag = 0;
 	}
 	if (!Keyboard::isKeyPressed(Keyboard::Down) && downFlag == 1) {
 		mainMenuChioce[currentIndex].setColor(Color::White);
-		currentIndex = (currentIndex + 1 + EXIT + 1) % (EXIT + 1);
+		currentIndex = (currentIndex + 1) % (2);
 		downFlag = 0;
 	}
 	mainMenuChioce[currentIndex].setColor(Color::Red);
@@ -478,24 +439,6 @@ int updateMainMenu(Text mainMenuChioce[], RectangleShape &currentChoiceRect) {
 	if (!Keyboard::isKeyPressed(Keyboard::Enter) && enterFlag == 1) {
 		mainMenuChioce[currentIndex].setColor(Color::White);
 		enterFlag = 0;
-		switch (currentIndex)
-		{
-		case AI:
-			gameMode = AI;
-			break;
-		case PvP:
-			gameMode = PvP;
-			break;
-		case OBSTACLE:
-			gameMode = OBSTACLE;
-			break;
-		case POWERUPS:
-			gameMode = POWERUPS;
-			break;
-		case EXIT:
-			return -1;
-			break;
-		}
 		return 1;
 	}
 	return 0;
@@ -505,7 +448,7 @@ int renderMainMenuFrame(Text mainMenuChioce[], RectangleShape currentChoiceRect)
 	window.clear();
 	window.draw(background);
 	window.draw(MainText);
-	for (int i = 0; i < EXIT + 1; i++) {
+	for (int i = 0; i < 2; i++) {
 		window.draw(mainMenuChioce[i]);
 	}
 	window.draw(currentChoiceRect);
@@ -564,13 +507,75 @@ int resetPaddle(paddle &lPaddle, paddle &rPaddle) {
 	return 0;
 }
 
-int resetGame(paddle &lPaddle, paddle &rPaddle) {
-	lScore = 0;
-	rScore = 0;
-	lScoreText.setString("0");
-	rScoreText.setString("0");
-	if (gameMode == POWERUPS) {
-		resetPaddle(lPaddle, rPaddle);
+int resetGame(ball &newBall) {
+	lives = 3;
+	level = 0;
+	newBall.setBasicVel(500);
+	lScoreText.setString("Left lives: III");
+	rScoreText.setString("Scores: 0");
+	initBricks(level);
+	return 0;
+}
+
+int initBricks(int level) {
+	int index = 0;
+	if (!bricks.empty()) {
+		bricks.clear();
+	}
+	if (level == 0) {
+		for (int i = 100; i < 300; i += 50) {
+			for (int j = 0; j < WIDTH; j += 200) {
+				brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 1, 1, brickTex, brickTex);
+				bricks.push_back(std::unique_ptr<brick>(b));
+			}
+		}
+	}
+	if (level == 1) {
+		for (int i = 100; i < 300; i += 50) {
+			for (int j = 0; j < WIDTH; j += 200) {
+				if (index == 1 || index == 4 || index == 6 || index == 8 || index == 9 || index == 11 || index == 13 || index == 16) {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 2, 2, brickTex, toughBrickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}
+				else {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 1, 1, brickTex, brickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}				
+				index++;
+			}
+		}
+	}
+	if (level == 2) {
+		for (int i = 100; i < 300; i += 50) {
+			for (int j = 0; j < WIDTH; j += 200) {
+				if (index == 1 || index == 4 || index == 6 || index == 8 || index == 9 || index == 11 || index == 13 || index == 16) {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 2, 2, brickTex, toughBrickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}
+				else if (index == 7 || index == 10 || index == 20 || index == 21) {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, -1, 3, ironBrickTex, ironBrickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}
+				else if (index == 2 || index == 3) {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 1, 4, brickTex, brickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}
+				else {
+					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 1, 1, brickTex, brickTex);
+					bricks.push_back(std::unique_ptr<brick>(b));
+				}
+				index++;
+			}
+		}
 	}
 	return 0;
+}
+
+int checkWin() {
+	for (int i = 0; i < bricks.size(); i++) {
+		if (bricks[i]->getType() != 3) {
+			return 0;
+		}
+	}
+	return 1;
 }

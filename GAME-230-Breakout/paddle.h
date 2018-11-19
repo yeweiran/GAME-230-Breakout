@@ -29,4 +29,3 @@ private:
 	int WIDTH;
 	int HEIGHT;
 };
-#pragma once

@@ -3,7 +3,7 @@
 paddle::paddle(Vector2f size, int WIDTH, int HEIGHT, int side, Vector2f vel, Texture &tex)
 {
 	rect.setSize(size);
-	if (side == -1) {
+	/*if (side == -1) {
 		rect.setPosition(100, HEIGHT / 2 - size.y / 2);
 	}
 	else if (side == 1) {
@@ -11,7 +11,8 @@ paddle::paddle(Vector2f size, int WIDTH, int HEIGHT, int side, Vector2f vel, Tex
 	}
 	else if (side == 0) {
 		rect.setPosition(WIDTH / 2, 0);
-	}
+	}*/
+	rect.setPosition(WIDTH / 2 - size.x / 2, HEIGHT -100);
 	rect.setTexture(&tex);
 	//rect.setFillColor(Color::White);
 	this->side = side;
@@ -35,35 +36,18 @@ int paddle::SetVel(Vector2f newVel) {
 }
 
 int paddle::UpdatePosition(float dt, int dir) {
-	if (side == 0) {
+	
+	if (dir == 0 && rect.getPosition().x >= 0) {
 		rect.setPosition(rect.getPosition() + vel * dt);
-		if ((vel.y < 0 && rect.getPosition().y <= 0)
-			|| (vel.y > 0 && rect.getPosition().y + rect.getSize().y >= HEIGHT)) {
-			vel = -vel;
-		}
 	}
-	else {
-		if (dir == 0 && rect.getPosition().y >= 0) {
-			rect.setPosition(rect.getPosition() + vel * dt);
-		}
-		else if (dir == 1 && rect.getPosition().y + rect.getSize().y <= HEIGHT) {
-			rect.setPosition(rect.getPosition() - vel * dt);
-		}
+	else if (dir == 1 && rect.getPosition().x + rect.getSize().x <= WIDTH) {
+		rect.setPosition(rect.getPosition() - vel * dt);
 	}
-
 	return 0;
 }
 
 int paddle::reset() {
-	if (side == -1) {
-		rect.setPosition(100, HEIGHT / 2 - rect.getSize().y / 2);
-	}
-	else if (side == 1) {
-		rect.setPosition(WIDTH - 100, HEIGHT / 2 - rect.getSize().y / 2);
-	}
-	else if (side == 0) {
-		rect.setPosition(WIDTH / 2, 0);
-	}
+	rect.setPosition(WIDTH / 2 - rect.getSize().x / 2, HEIGHT - 100);
 	return 0;
 }
 
