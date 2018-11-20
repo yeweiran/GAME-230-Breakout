@@ -19,6 +19,8 @@ public:
 	int hit();
 	RectangleShape getRect();
 	int getType();
+	int setHitFlag(int flag);
+	int getHitFlag();
 private:
 	RectangleShape rect;
 	Vector2f vel;
@@ -28,4 +30,5 @@ private:
 	Texture *hp1Tex;
 	Texture *hp2Tex;
 	int type;
+	int hitFlag;
 };

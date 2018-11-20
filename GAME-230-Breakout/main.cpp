@@ -3,6 +3,7 @@
 #include "brick.h"
 #include <vector>
 #include <string>
+#include "iostream"
 
 using namespace sf;
 #define _CRTDBG_MAP_ALLOC
@@ -18,12 +19,12 @@ using namespace sf;
 
 int WIDTH = 1200;
 int HEIGHT = 1000;
-int initVel = 500;
+int initVel = 600;
 int tempVel;
 int augPerHit = 25;
 float radius = 20;
-Vector2f paddleSize = Vector2f(200, 50);
-Vector2f paddleVel = Vector2f(-300, 0);
+Vector2f paddleSize = Vector2f(200, 40);
+Vector2f paddleVel = Vector2f(-400, 0);
 Vector2f brickSize = Vector2f(198, 48);
 Font font;
 Texture ballTex;
@@ -87,7 +88,7 @@ int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF |
 		_CRTDBG_LEAK_CHECK_DF);
-	window.create(VideoMode(WIDTH, HEIGHT), "Just Another Pong Game");
+	window.create(VideoMode(WIDTH, HEIGHT), "Just Another Breakout");
 	srand((unsigned)time(NULL));
 
 	Clock clock;
@@ -95,7 +96,7 @@ int main()
 	int gameInterfaceFlag = 0;
 	int endInterfaceFlag = 0;
 	int temp = 0;
-	level = 2;
+	level = 0;
 	lives = 3;
 	RectangleShape currentChoiceRect;
 	currentIndex = 0;
@@ -110,7 +111,6 @@ int main()
 	brickTex.loadFromFile("brick.png");
 	toughBrickTex.loadFromFile("toughbrick.png");
 	ironBrickTex.loadFromFile("ironbrick.png");
-	backTex.loadFromFile("back.png");
 	buf.loadFromFile("knock.wav");
 	sound.setBuffer(buf);
 	bBuf.loadFromFile("break.wav");
@@ -193,7 +193,7 @@ int main()
 
 	MainText.setFont(font);
 	MainText.setCharacterSize(100);
-	MainText.setString("Just Another Pong Game");
+	MainText.setString("Just Another Breakout");
 	MainText.setFillColor(Color::White);
 	MainText.setPosition(150, 150);
 
@@ -214,6 +214,7 @@ int main()
 				mainMenuFlag = 0;
 				gameInterfaceFlag = 1;
 				currentIndex = 0;
+				MainText.setString("");
 				initBricks(level);
 			}
 			else if (temp == -1) {
@@ -238,6 +239,7 @@ int main()
 				endInterfaceFlag = 0;
 				gameInterfaceFlag = 1;
 				resetGame(newBall);
+				MainText.setString("");
 			}
 			if (temp == 1) {
 				currentIndex = 0;
@@ -254,7 +256,7 @@ int main()
 
 		window.display();
 	}
-
+	bricks.clear();
 	return 0;
 }
 
@@ -277,10 +279,13 @@ int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, ball
 		if (flag == 0) {
 			wSound.play();
 			flag = 1;
+			MainText.setString("Level Clear!");
+			MainText.setPosition(400, 400);
 		}
 		if (wSound.getStatus() != SoundSource::Playing && flag == 1) {
 			flag = 0;
 			startFlag = 1;
+			MainText.setString("");
 			reset(newBall, lPaddle, rPaddle, powerBall);
 			ppp = rPaddle.getPaddle().getPosition();
 			level = (level + 1) % 3;
@@ -325,15 +330,22 @@ int update_state(float dt, ball &newBall, paddle &lPaddle, paddle &rPaddle, ball
 		for (int i = 0; i < bricks.size();)
 		{
 			if (newBall.collidBrickDetect(bricks[i]->getRect())) {
-				int type = bricks[i]->hit();
-				kick = 3;
-				if (type) {
-					rScore += (type * 10);
-					rScoreText.setString("Scores: " + std::to_string(rScore));
-					bricks.erase(bricks.begin() + i);
-					kick = 4;
-					continue;
-				}
+				if (!bricks[i]->getHitFlag()) {
+					bricks[i]->setHitFlag(1);
+					int type = bricks[i]->hit();
+					//std::cout << "x: " << newBall.getBall().getPosition().x << " y: " << newBall.getBall().getPosition().y << std::endl;
+					kick = 3;
+					if (type) {
+						rScore += (type * 10);
+						rScoreText.setString("Scores: " + std::to_string(rScore));
+						bricks.erase(bricks.begin() + i);
+						kick = 4;
+						continue;
+					}
+				}	
+			}
+			else if (bricks[i]->getHitFlag()) {
+				bricks[i]->setHitFlag(0);
 			}
 			i++;
 		}
@@ -401,6 +413,7 @@ void render_frame(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBa
 	{
 		bricks[i]->draw(window);
 	}
+	window.draw(MainText);
 }
 
 int reset(ball &newBall, paddle &lPaddle, paddle &rPaddle, ball &powerBall) {
@@ -510,7 +523,8 @@ int resetPaddle(paddle &lPaddle, paddle &rPaddle) {
 int resetGame(ball &newBall) {
 	lives = 3;
 	level = 0;
-	newBall.setBasicVel(500);
+	rScore = 0;
+	newBall.setBasicVel(initVel);
 	lScoreText.setString("Left lives: III");
 	rScoreText.setString("Scores: 0");
 	initBricks(level);
@@ -523,7 +537,7 @@ int initBricks(int level) {
 		bricks.clear();
 	}
 	if (level == 0) {
-		for (int i = 100; i < 300; i += 50) {
+		for (int i = 80; i < 320; i += 60) {
 			for (int j = 0; j < WIDTH; j += 200) {
 				brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 1, 1, brickTex, brickTex);
 				bricks.push_back(std::unique_ptr<brick>(b));
@@ -531,7 +545,7 @@ int initBricks(int level) {
 		}
 	}
 	if (level == 1) {
-		for (int i = 100; i < 300; i += 50) {
+		for (int i = 80; i < 320; i += 60) {
 			for (int j = 0; j < WIDTH; j += 200) {
 				if (index == 1 || index == 4 || index == 6 || index == 8 || index == 9 || index == 11 || index == 13 || index == 16) {
 					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 2, 2, brickTex, toughBrickTex);
@@ -546,7 +560,7 @@ int initBricks(int level) {
 		}
 	}
 	if (level == 2) {
-		for (int i = 100; i < 300; i += 50) {
+		for (int i = 80; i < 320; i += 60) {
 			for (int j = 0; j < WIDTH; j += 200) {
 				if (index == 1 || index == 4 || index == 6 || index == 8 || index == 9 || index == 11 || index == 13 || index == 16) {
 					brick* b = new brick(brickSize, Vector2f(j, i), WIDTH, HEIGHT, 2, 2, brickTex, toughBrickTex);

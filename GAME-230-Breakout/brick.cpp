@@ -9,6 +9,7 @@ brick::brick(Vector2f size, Vector2f pos, int WIDTH, int HEIGHT, int hp, int typ
 	this->type = type;
 	this->hp1Tex = &hp1Tex;
 	this->hp2Tex = &hp2Tex;
+	this->hitFlag = 0;
 	if (type == 1 || type == 3) {
 		rect.setTexture(&hp1Tex);
 	}
@@ -44,4 +45,13 @@ RectangleShape brick::getRect() {
 
 int brick::getType() {
 	return type;
+}
+
+int brick::getHitFlag() {
+	return hitFlag;
+}
+
+int brick::setHitFlag(int flag) {
+	hitFlag = flag;
+	return 0;
 }

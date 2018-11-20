@@ -69,46 +69,47 @@ int ball::collidBrickDetect(RectangleShape rect) {
 	Vector2f bp = ballShape.getPosition();
 	Vector2f op = rect.getPosition();
 	Vector2f brickSize = rect.getSize();
+	
 	if (bp.x >= op.x && bp.x <= op.x + brickSize.x) {
 		if (op.y - bp.y < radius && op.y >= bp.y) {
-			vel.y = -abs(vel.y);
-			return 1;
+				vel.y = -abs(vel.y);
+				return 1;
 		}
 		if (bp.y - op.y - brickSize.y < radius && bp.y > op.y + brickSize.y) {
-			vel.y = abs(vel.y);
-			return 1;
+				vel.y = abs(vel.y);
+				return 1;
 		}
 	}
 	else if (bp.y >= op.y && bp.y <= op.y + brickSize.y) {
 		if (bp.x - op.x - brickSize.x <= radius && bp.x >= op.x + brickSize.x) {
-			vel.x = abs(vel.x);
-			return 1;
+				vel.x = abs(vel.x);
+				return 1;
 		}
 		if (op.x - bp.x <= radius && op.x >= bp.x) {
-			vel.x = -abs(vel.x);
-			return 1;
+				vel.x = -abs(vel.x);
+				return 1;
 		}
 	}
 	else if (Length(Vector2f(bp.x - op.x, bp.y - op.y)) < radius && op.x > bp.x && op.y > bp.y) {
-		vel.x = -abs(vel.x);
-		vel.y = -abs(vel.y);
-		return 1;
+			vel.x = -abs(vel.x);
+			vel.y = -abs(vel.y);
+			return 1;
 	}
 	else if (Length(Vector2f(bp.x - op.x - brickSize.x, bp.y - op.y)) < radius && bp.x > op.x + brickSize.x && op.y > bp.y) {
-		vel.x = abs(vel.x);
-		vel.y = -abs(vel.y);
-		return 1;
+			vel.x = abs(vel.x);
+			vel.y = -abs(vel.y);
+			return 1;
 	}
 	else if (Length(Vector2f(bp.x - op.x, bp.y - op.y - brickSize.y)) < radius && op.x > bp.x && bp.y > op.y + brickSize.y) {
-		vel.x = -abs(vel.x);
-		vel.y = abs(vel.y);
-		return 1;
+			vel.x = -abs(vel.x);
+			vel.y = abs(vel.y);
+			return 1;
 	}
 	else if (Length(Vector2f(bp.x - op.x - brickSize.x, bp.y - op.y - brickSize.y)) < radius
 		&& bp.x > op.x + brickSize.x && bp.y > op.y + brickSize.y) {
-		vel.x = abs(vel.x);
-		vel.y = abs(vel.y);
-		return 1;
+			vel.x = abs(vel.x);
+			vel.y = abs(vel.y);
+			return 1;
 	}
 	return 0;
 }
@@ -145,7 +146,7 @@ int ball::collidPaddleDetect(RectangleShape rect) {
 }
 
 int ball::levelUp() {
-	basicVel += 50;
+	basicVel += 100;
 	return 0;
 }
 
