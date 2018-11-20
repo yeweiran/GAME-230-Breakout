@@ -452,6 +452,9 @@ int updateMainMenu(Text mainMenuChioce[], RectangleShape &currentChoiceRect) {
 	if (!Keyboard::isKeyPressed(Keyboard::Enter) && enterFlag == 1) {
 		mainMenuChioce[currentIndex].setColor(Color::White);
 		enterFlag = 0;
+		if (currentIndex == 1) {
+			return -1;
+		}
 		return 1;
 	}
 	return 0;
